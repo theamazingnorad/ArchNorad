@@ -6,8 +6,8 @@ if [ $(whoami) == root ]; then echo "Please do NOT run as root.  Exiting..." && 
 
 if [[ ! $(command -v flatpak) ]]; then echo "Flatpak is not installed.  Please install then try again..." && exit 1; fi
 
-#SCRIPT_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd )
-#PARENT_DIR=$(dirname $SCRIPT_DIR)
+SCRIPT_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd )
+PARENT_DIR=$(dirname $SCRIPT_DIR)
 
 echo -ne "
 ===========================================================================================================
@@ -32,10 +32,10 @@ echo -ne "
 -------------------------------------------------------------------------
 "
 
-if [[ $(pacman -Qqs flatpak) ]]; then
+if [[ $(pacman -Qqs | grep flatpak) ]]; then
       echo "Flatpak installed....continuing"
       else
-            echo "Flatpak not installed...aborting"
+      echo "Flatpak not installed...aborting"
 fi
 
 echo "Adding Flathub..."

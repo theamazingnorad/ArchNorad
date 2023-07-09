@@ -37,7 +37,7 @@ export -n DE && export -n retry
 }
 
 #SCRIPT_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd )
-#atePARENT_DIR=$(dirname $SCRIPT_DIR)
+#PARENT_DIR=$(dirname $SCRIPT_DIR)
 #CHEZMOI_DIR=$(chezmoi source-path)
 
 echo -ne "
@@ -66,27 +66,28 @@ fi
 
 echo -ne "
 -------------------------------------------------------------------------
-        Installing Kitty, Fish, Vim and Configure the Terminal
+                          Change the Shell
+                       Sync Dotfiles w/ Chezmoi
 -------------------------------------------------------------------------
 "
-# Make fish shell the default shell for me, assuming installed sucesfully before.
+# Make fish shell the default shell for norad, assuming installed sucesfully before.
 if [[ -f /usr/bin/fish ]]; then
       chsh -s /user/bin/fish
 fi
 
-#Make VIM the default editor
-export VISUAL=vim
-export EDITOR="$VISUAL"
-
-echo -ne "
--------------------------------------------------------------------------
-                    Synching Dotfiles Using Chezmoi
--------------------------------------------------------------------------
-"
 # Chezmoi has my SSH keys, SSH config, Fish aliases, .bashrc, and .vimrc as managed files
 # Also has my konsave files
 chezmoi init --apply https://github.com/theamazingnorad/dotfiles.git
 
+
+echo -ne "
+-------------------------------------------------------------------------
+                          Install AUR Packages
+-------------------------------------------------------------------------
+"
+
+# List generated using yay -Qqme
+echo y | yay --noprovides --answerdiff None --answerclean None --mflags "--noconfirm" -S <"$CONFIG_DIR/aur-list.txt"
 
 #=========================================+DIVIDER=========================================================
 #==========================================================================================================
@@ -111,7 +112,6 @@ elseif [ $DE = "GNOME"]; then
 elseif [ $DE = "Hyprlnd" ]; then
       source $SCRIPT_DIR/3-HYPR.sh
 fi
-
 
 
 : '

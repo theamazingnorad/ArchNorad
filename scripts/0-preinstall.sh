@@ -24,9 +24,6 @@ fi
 #==========================================================================================================
 #==========================================================================================================
 #==========================================================================================================
-#==========================================================================================================
-#==========================================================================================================
-#==========================================================================================================
 
 echo -ne "
 ===========================================================================================================
@@ -46,17 +43,7 @@ echo -ne "
 
 echo -ne "
 -------------------------------------------------------------------------
-                        Initial Config
--------------------------------------------------------------------------
-"
-echo -e "/r Installing  dependencies needed for the script...."
-pacman -S --noconfirm --needed curl wget os-prober git flatpak lolcat chezmoi
-echo "Adding Flathub..."
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-echo -ne "
--------------------------------------------------------------------------
-                        AUR Helper Instalattion
+                        AUR Helper Check
 -------------------------------------------------------------------------
 "
 
@@ -79,12 +66,9 @@ fi
 
 echo -ne "
 -------------------------------------------------------------------------
-     Installing Kitty, Fish, Vim and Configure the Terminal for Root
+                      Configure the Terminal for Root
 -------------------------------------------------------------------------
 "
-#Install required packages
-pacman -S --noconfirm kitty fish ranger exa lsd tree neofetch vim lolcat btop ttf-nerd-fonts-symbols ttf-noto-nerd starship
-
 #Make fish shell the default shell for root, if install is sucesfull, and configure OMF
 if [[ -f /usr/bin/fish ]]; then
       chsh -s /user/bin/fish
@@ -93,16 +77,13 @@ if [[ -f /usr/bin/fish ]]; then
 fi
 
 #Make VIM the default editor
-export VISUAL=vim
-export EDITOR="$VISUAL"
+vis=$(command -v vim 2>/dev/null || command -v vi 2>/dev/null)
+echo "VISUAL=$vis" >> etc/environment
+export 'EDITOR="$VISUAL"' >> etc/environment
 
 #Add insults when fat fingering passwords
 if [ ! -z $(grep "Defaults insults" "/etc/sudoers") ]; then echo "Defaults insults" >> /etc/sudoers; fi
 
-
-if [ $1 == "2" ]; then
-      exit 1
-fi
 
 echo -ne "
 -------------------------------------------------------------------------
@@ -112,7 +93,7 @@ echo -ne "
 "
 
 if [[ "${FS}" == "btrfs" ]]; then
-      pacman -S --noconfirm snapper snapper-gui-git
+      pacman -S --noconfirm --needed snapper #snapper-gui-git  this is in the AUR
       SNAPPER_CONF="$CONFIGS_DIR/etc/snapper/configs/"
       mkdir -p /etc/snapper/configs/
       cp -rfv ${SNAPPER_CONF}/root /etc/snapper/configs/
@@ -140,7 +121,7 @@ echo -ne "
 
 if [[ -d "/boot/grub" ]]; then
       # Install grub-btrfs if BTRFS is the Filesystem for Root.
-      if [ $FS == btrfs ]; then pacman -S --noconfirm grub-btrfs; fi
+      if [ $FS == btrfs ]; then pacman -S --noconfirm --needed grub-btrfs; fi
       # Check to see if any grub themes are installed
       # CD, or make, the directory and installed the legacy EndeavorOS GRUB 2 theme.
       if [[ ! -d /boot/grub/themes/ ]]; then
@@ -156,7 +137,44 @@ else
     echo "Grub is not installed...aborting this section!!!"
 fi
 
+echo -ne "
+-------------------------------------------------------------------------
+                    Virtulization
+-------------------------------------------------------------------------
+"
+echo "Do you want to install Virtulization tools via QEMU/libvirt? (y/n):"
+read ans;  if [[ ans == Y* || ans == y* ]]; then
+      pacman -S --noconfirm --needed virt-manager qemu-desktop libvirt edk2-ovmf dnsmasq vde2 bridge-utils iptables-nft dmidecode
+      systemctl enable --now libvirtd.service
+      groupadd -f kvm
+      groupadd -f libvirt
+      usermod -aG libvirt $user
+      usermod -aG kvm $user
+      (grep -x  '#unix_sock_group' libvirtd.conf) &&  (sed 's/#unix_sock_group = "0777"/unix_sock_group = "libvirt"/' /etc/libvirt/libvirtd.conf
+      (grep -x  '#unix_sock_ro_perms = "0777"' libvirtd.conf) &&  (sed 's/#unix_sock_ro_perms = "0777"/unix_sock_ro_perms = "0777"/' /etc/libvirt/libvirtd.conf
+      (grep -x  '#unix_sock_rw_perms = "0770"' libvirtd.conf) &&  (sed 's/#unix_sock_rw_perms = "0770"/unix_sock_ro_perms = "0770"/' /etc/libvirt/libvirtd.conf
+      echo -e "\nuser = "$user"" >> /etc/libvirt/qemu.conf
+      echo -e "\ngroup = "$user"" >> /etc/libvirt/qemu.conf
+fi
 
+
+echo -ne "
+-------------------------------------------------------------------------
+                           FSTAB Check
+-------------------------------------------------------------------------
+"
+# Check for NFS Share.  If not there, add it.
+(grep "noradshare" /etc/fstab) || echo -e "\n#NFS Share\n192.168.50.55:/home/norad/noradshare    /home/norad/noradshare nfs  _netdev,noauto,sync,x-systemd.automount,x-systemd.mount-timeout=10,timeo=14	0 0"
+
+# Check for Intel SSD with Steam.  If not there, add it.
+intel_ssd1_sn='BTNH90810Q0T2P0C'
+intel_ssd1_uuid='2228474f-5f40-4ca9-8b97-e127c7740242'
+if [[ nvme list | awk '{print $3}' | grep $intel_ssd1_sn ]] && [[ ! grep "$intel_ssd1_uuid" /etc/fstab ]]; then
+      echo -e '\n#1.9TB Intel SSD\nUUID=2228474f-5f40-4ca9-8b97-e127c7740242   /home/norad/Steam  	     btrfs   subvol=/@steam,nodiscard,noatime,compress=zstd     0 0'
+      echo -e '\nUUID=2228474f-5f40-4ca9-8b97-e127c7740242   /home/norad/Media         btrfs   subvol=/@media,nodiscard,noatime,compress=zstd     0 0'
+      echo -e '\nUUID=2228474f-5f40-4ca9-8b97-e127c7740242   /home/norad/Games/Heroic  btrfs   subvol=/@heroic,nodiscard,noatime,compress=zstd     0 0'
+      echo -e '\nUUID=2228474f-5f40-4ca9-8b97-e127c7740242   /home/norad/Bottles       btrfs   subvol=/@bottles,nodiscard,noatime,compress=zstd     0 0 '
+fi
 
 : '
 This is a
